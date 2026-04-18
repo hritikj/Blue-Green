@@ -1,0 +1,52 @@
+pipeline {
+    agent any
+
+    stages {
+
+        stage('Clone Main') {
+            steps {
+                git branch: 'main', url: 'https://github.com/hritikj/Docker-Project.git'
+            }
+        }
+
+        stage('Deploy Green') {
+            steps {
+                sh 'docker-compose up -d --build green'
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                sh '''
+                sleep 10
+                curl -f http://localhost:3002 || exit 1
+                '''
+            }
+        }
+
+        stage('Switch to Green') {
+            steps {
+                sh '''
+                sed -i 's/server blue:5000;/# server blue:5000;/' nginx/nginx.conf
+                sed -i 's/# server green:5000;/server green:5000;/' nginx/nginx.conf
+
+                docker exec nginx nginx -s reload
+                '''
+            }
+        }
+    }
+
+    post {
+        failure {
+            echo "Rollback to Blue"
+
+            sh '''
+            sed -i 's/server green:5000;/# server green:5000;/' nginx/nginx.conf
+            sed -i 's/# server blue:5000;/server blue:5000;/' nginx/nginx.conf
+
+            docker exec nginx nginx -s reload
+            docker start blue || true
+            '''
+        }
+    }
+}

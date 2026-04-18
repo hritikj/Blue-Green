@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tic Tac Toe</title>
+
+    {% if version == "green" %}
+    <!-- 🌿 GREEN THEME -->
+    <style>
+        body {
+            background: #0f172a;
+            color: #22c55e;
+            text-align: center;
+            font-family: monospace;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            gap: 10px;
+            justify-content: center;
+        }
+        .cell {
+            width: 80px;
+            height: 80px;
+            font-size: 2em;
+            background: #020617;
+            border: 2px solid #22c55e;
+            color: #22c55e;
+            cursor: pointer;
+        }
+    </style>
+
+    {% else %}
+    <!-- 🔵 BLUE THEME -->
+    <style>
+        body {
+            background: #f0f8ff;
+            text-align: center;
+            font-family: Arial;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            gap: 5px;
+            justify-content: center;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            font-size: 2em;
+            background: #eee;
+            cursor: pointer;
+        }
+    </style>
+    {% endif %}
+
+</head>
+<body>
+
+<h1>
+    {% if version == "green" %}
+        🌿 Neon Tic-Tac-Toe (GREEN)
+    {% else %}
+        🔵 Classic Tic-Tac-Toe (BLUE)
+    {% endif %}
+</h1>
+
+<div class="board" id="board"></div>
+
+<script>
+let board = ["", "", "", "", "", "", "", "", ""];
+let currentPlayer = "X";
+
+const boardDiv = document.getElementById("board");
+
+function render() {
+    boardDiv.innerHTML = "";
+    board.forEach((cell, i) => {
+        const div = document.createElement("div");
+        div.className = "cell";
+        div.innerText = cell;
+        div.onclick = () => move(i);
+        boardDiv.appendChild(div);
+    });
+}
+
+function move(i) {
+    if (board[i] === "") {
+        board[i] = currentPlayer;
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+        render();
+    }
+}
+
+render();
+</script>
+
+</body>
+</html>
