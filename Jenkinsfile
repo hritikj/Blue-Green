@@ -31,7 +31,7 @@ pipeline {
                 docker stop $GREEN || true
                 docker rm $GREEN || true
                 docker-compose up -d
-                // docker run -d -p 5002:5000 --name $GREEN $IMAGE
+                # docker run -d -p 5002:5000 --name $GREEN $IMAGE
                 '''
             }
         }
