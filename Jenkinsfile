@@ -9,9 +9,8 @@ pipeline {
         IMAGE = "tic-app:latest"
         GREEN = "tic-green"
         BLUE  = "tic-blue"
-        PORT_BLUE = "5001"
-        PORT_GREEN = "5002"
-        NGINX_CONTAINER = "nginx-proxy"
+        GREEN_PORT = "5002"
+        BLUE_PORT  = "5001"
     }
 
     stages {
@@ -24,9 +23,7 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                sh '''
-                docker build -t $IMAGE .
-                '''
+                sh 'docker build -t $IMAGE .'
             }
         }
 
@@ -38,7 +35,7 @@ pipeline {
 
                 docker run -d \
                   --name $GREEN \
-                  -p $PORT_GREEN:5000 \
+                  -p $GREEN_PORT:5000 \
                   $IMAGE
                 '''
             }
@@ -50,7 +47,7 @@ pipeline {
                     sh 'sleep 10'
 
                     def status = sh(
-                        script: "curl -f http://localhost:${PORT_GREEN}",
+                        script: "curl -f http://localhost:${GREEN_PORT}",
                         returnStatus: true
                     )
 
@@ -64,22 +61,28 @@ pipeline {
         stage('Switch Traffic to Green') {
             steps {
                 sh '''
+                # Update nginx config safely
                 sed -i 's/tic-blue/tic-green/g' nginx/nginx.conf
 
-                # Reload nginx safely (fallback included)
-                docker exec $NGINX_CONTAINER nginx -s reload || \
-                docker compose exec nginx nginx -s reload
+                # Find nginx container dynamically (NO hardcoding)
+                NGINX_CONTAINER=$(docker ps -q --filter "name=nginx")
+
+                if [ -n "$NGINX_CONTAINER" ]; then
+                    docker exec $NGINX_CONTAINER nginx -s reload
+                else
+                    echo "⚠️ NGINX container not found - skipping reload"
+                    exit 1
+                fi
                 '''
             }
         }
 
-        stage('Deploy Blue (cleanup old version)') {
+        stage('Promote Green to Blue') {
             steps {
                 sh '''
                 docker stop $BLUE || true
                 docker rm $BLUE || true
 
-                # Optional: promote green → blue for next cycle
                 docker rename $GREEN $BLUE || true
                 '''
             }
