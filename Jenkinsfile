@@ -68,10 +68,8 @@ pipeline {
         stage('Switch Traffic to Green') {
             steps {
                 sh '''
-                //Update nginx config
                 sed -i 's/tic-blue/tic-green/g' nginx/nginx.conf
 
-                //Safe nginx reload (no hardcoded container name dependency)
                 NGINX_CONTAINER=$(docker ps -q --filter "name=nginx")
 
                 if [ -n "$NGINX_CONTAINER" ]; then
