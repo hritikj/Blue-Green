@@ -42,7 +42,6 @@ pipeline {
                     docker stop $NGINX || true
                     docker rm $NGINX || true
 
-                    docker-compose down || true
                     docker-compose up -d
                 '''
             }
