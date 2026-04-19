@@ -8,7 +8,10 @@ pipeline {
     environment {
         IMAGE = "tic-app:latest"
         GREEN = "tic-green"
-        BLUE = "tic-blue"
+        BLUE  = "tic-blue"
+        PORT_BLUE = "5001"
+        PORT_GREEN = "5002"
+        NGINX_CONTAINER = "nginx-proxy"
     }
 
     stages {
@@ -21,7 +24,9 @@ pipeline {
 
         stage('Build Image') {
             steps {
-                sh 'docker build -t $IMAGE .'
+                sh '''
+                docker build -t $IMAGE .
+                '''
             }
         }
 
@@ -31,7 +36,10 @@ pipeline {
                 docker stop $GREEN || true
                 docker rm $GREEN || true
 
-                docker run -d -p 5002:5000 --name $GREEN $IMAGE
+                docker run -d \
+                  --name $GREEN \
+                  -p $PORT_GREEN:5000 \
+                  $IMAGE
                 '''
             }
         }
@@ -39,11 +47,15 @@ pipeline {
         stage('Health Check Green') {
             steps {
                 script {
-                    try {
-                        sh 'sleep 10'
-                        sh 'curl -f http://localhost:5002'
-                    } catch (err) {
-                        error("Green deployment failed")
+                    sh 'sleep 10'
+
+                    def status = sh(
+                        script: "curl -f http://localhost:${PORT_GREEN}",
+                        returnStatus: true
+                    )
+
+                    if (status != 0) {
+                        error("❌ Green deployment failed health check")
                     }
                 }
             }
@@ -53,24 +65,39 @@ pipeline {
             steps {
                 sh '''
                 sed -i 's/tic-blue/tic-green/g' nginx/nginx.conf
-                docker exec nginx-proxy nginx -s reload
+
+                # Reload nginx safely (fallback included)
+                docker exec $NGINX_CONTAINER nginx -s reload || \
+                docker compose exec nginx nginx -s reload
                 '''
             }
         }
 
-        stage('Stop Blue') {
+        stage('Deploy Blue (cleanup old version)') {
             steps {
                 sh '''
                 docker stop $BLUE || true
                 docker rm $BLUE || true
+
+                # Optional: promote green → blue for next cycle
+                docker rename $GREEN $BLUE || true
                 '''
             }
         }
     }
 
     post {
+        success {
+            echo "✅ Deployment successful - traffic switched to GREEN"
+        }
+
         failure {
-            echo "Green failed → Keeping Blue running"
+            echo "❌ Deployment failed - keeping BLUE running"
+
+            sh '''
+            docker stop $GREEN || true
+            docker rm $GREEN || true
+            '''
         }
     }
 }
