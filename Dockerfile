@@ -15,6 +15,6 @@ COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
 # Default app (will override in compose)
-COPY app /app
+COPY . /app
 
-CMD ["python", "app/blue/app.py"]
+CMD ["python", "app.py"]
