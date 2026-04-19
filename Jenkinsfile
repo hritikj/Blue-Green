@@ -9,6 +9,8 @@ pipeline {
         IMAGE = "tic-app:latest"
         GREEN = "tic-green"
         BLUE = "tic-blue"
+        NGINX = "nginx-proxy"
+        NETWORK = "app-network"
     }
 
     stages {
@@ -25,13 +27,23 @@ pipeline {
             }
         }
 
+        stage('Create Network') {
+            steps {
+                sh 'docker network create $NETWORK || true'
+            }
+        }
+
         stage('Deploy Green') {
             steps {
                 sh '''
-                docker stop $GREEN || true
-                docker rm $GREEN || true
-                docker compose up -d
-                // docker run -d -p 5002:5000 --name $GREEN $IMAGE
+                    docker stop $GREEN || true
+                    docker rm $GREEN || true
+
+                    docker run -d \
+                        --name $GREEN \
+                        --network $NETWORK \
+                        -p 5002:5000 \
+                        $IMAGE
                 '''
             }
         }
@@ -40,20 +52,58 @@ pipeline {
             steps {
                 script {
                     try {
-                        sh 'sleep 10'
-                        sh 'curl -f http://localhost:5002'
+                        sh '''
+                            echo "Waiting for GREEN to be ready..."
+                            for i in {1..10}; do
+                                curl -f http://localhost:5002 && exit 0
+                                sleep 3
+                            done
+                            exit 1
+                        '''
                     } catch (err) {
-                        error("Green deployment failed")
+                        error("❌ Green deployment failed")
                     }
                 }
+            }
+        }
+
+        stage('Ensure Nginx Running') {
+            steps {
+                sh '''
+                    if ! docker ps --format '{{.Names}}' | grep -q "^$NGINX$"; then
+                        echo "Starting nginx-proxy..."
+                        
+                        docker rm -f $NGINX || true
+
+                        docker run -d \
+                          --name $NGINX \
+                          --network $NETWORK \
+                          -p 80:80 \
+                          -v $(pwd)/nginx/nginx.conf:/etc/nginx/nginx.conf \
+                          nginx
+                    fi
+                '''
             }
         }
 
         stage('Switch Traffic to Green') {
             steps {
                 sh '''
-                sed -i 's/tic-blue/tic-green/g' nginx/nginx.conf
-                docker exec nginx-proxy nginx -s reload
+                    echo "Switching traffic to GREEN..."
+
+                    sed -i 's/tic-blue/tic-green/g' nginx/nginx.conf
+
+                    echo "Restarting nginx..."
+                    docker restart $NGINX
+
+                    sleep 3
+
+                    echo "Validating nginx is running..."
+                    if ! docker ps --format '{{.Names}}' | grep -q "^$NGINX$"; then
+                        echo "❌ nginx failed to start"
+                        docker logs $NGINX
+                        exit 1
+                    fi
                 '''
             }
         }
@@ -61,8 +111,10 @@ pipeline {
         stage('Stop Blue') {
             steps {
                 sh '''
-                docker stop $BLUE || true
-                docker rm $BLUE || true
+                    echo "Stopping BLUE..."
+
+                    docker stop $BLUE || true
+                    docker rm $BLUE || true
                 '''
             }
         }
@@ -70,7 +122,13 @@ pipeline {
 
     post {
         failure {
-            echo "Green failed → Keeping Blue running"
+            echo "🚨 Deployment failed. Rolling back to BLUE..."
+
+            sh '''
+                sed -i 's/tic-green/tic-blue/g' nginx/nginx.conf
+
+                docker restart $NGINX || true
+            '''
         }
     }
 }
