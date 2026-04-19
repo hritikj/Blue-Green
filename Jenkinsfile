@@ -33,11 +33,7 @@ pipeline {
                 docker stop $GREEN || true
                 docker rm $GREEN || true
 
-                docker run -d \
-                  --name $GREEN \
-                  -p $GREEN_PORT:5000 \
-                  $IMAGE
-                '''
+                docker-compose up -d
             }
         }
 
