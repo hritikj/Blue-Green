@@ -67,7 +67,7 @@ pipeline {
 
         stage('Switch Traffic to Green') {
             steps {
-                sh '''
+                sh """
                 sed -i 's/tic-blue/tic-green/g' nginx/nginx.conf
 
                 NGINX_CONTAINER=$(docker ps -q --filter "name=nginx")
@@ -78,7 +78,7 @@ pipeline {
                     echo "❌ NGINX container not found"
                     exit 1
                 fi
-                '''
+                """
             }
         }
 
