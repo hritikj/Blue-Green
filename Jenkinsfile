@@ -39,11 +39,11 @@ pipeline {
                     docker stop $GREEN || true
                     docker rm $GREEN || true
 
-                    docker run -d \
-                        --name $GREEN \
-                        --network $NETWORK \
-                        -p 5002:5000 \
-                        $IMAGE
+                    docker stop $NGINX || true
+                    docker rm $NGINX || true
+
+                    docker-compose down || true
+                    docker-compose up -d
                 '''
             }
         }
@@ -67,24 +67,7 @@ pipeline {
             }
         }
 
-        stage('Ensure Nginx Running') {
-            steps {
-                sh '''
-                    if ! docker ps --format '{{.Names}}' | grep -q "^$NGINX$"; then
-                        echo "Starting nginx-proxy..."
-                        
-                        docker rm -f $NGINX || true
-
-                        docker run -d \
-                          --name $NGINX \
-                          --network $NETWORK \
-                          -p 80:80 \
-                          -v $(pwd)/nginx/nginx.conf:/etc/nginx/nginx.conf \
-                          nginx
-                    fi
-                '''
-            }
-        }
+        
 
         stage('Switch Traffic to Green') {
             steps {
