@@ -34,6 +34,7 @@ pipeline {
                 docker rm $GREEN || true
 
                 docker-compose up -d
+                '''
             }
         }
 
@@ -84,10 +85,10 @@ pipeline {
 
         stage('Stop Blue') {
             steps {
-                sh '''
-                docker stop $BLUE || true
-                docker rm $BLUE || true
-                '''
+                sh """
+                    docker stop \$BLUE || true
+                    docker rm \$BLUE || true
+                """
             }
         }
     }
