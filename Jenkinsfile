@@ -55,7 +55,7 @@ pipeline {
                         sh '''
                             echo "Waiting for GREEN to be ready..."
                             for i in {1..10}; do
-                                curl -f http://54.90.107.7:5002 && exit 0
+                                ccurl -f http://localhost:5002 && exit 0
                                 sleep 3
                             done
                             exit 1
