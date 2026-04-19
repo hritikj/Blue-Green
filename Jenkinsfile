@@ -36,6 +36,12 @@ pipeline {
         stage('Deploy Green') {
             steps {
                 sh '''
+                     docker stop $GREEN || true
+                     docker rm $GREEN || true
+
+                     docker stop $NGINX || true
+                     docker rm $NGINX || true
+                     
                      docker-compose down || true
                      docker-compose up -d
                 '''
