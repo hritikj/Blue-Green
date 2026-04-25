@@ -27,11 +27,7 @@ pipeline {
             }
         }
 
-        stage('Create Network') {
-            steps {
-                sh 'docker network create $NETWORK || true'
-            }
-        }
+        
 
         stage('Deploy Green') {
             steps {
